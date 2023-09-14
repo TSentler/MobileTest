@@ -69,7 +69,7 @@
       </div>
     </div>
   </div>
-  <script src="Build/InternalBuildTest.loader.js"></script>
+   <script src="Build/InternalBuildTest.loader.js"></script>
   <script>
     const maxPixelRatioMobile = 2.0;
     const maxPixelRatioDesktop = 1.5;
@@ -82,9 +82,9 @@
     var buildUrl = "Build";
     var loaderUrl = buildUrl + "/InternalBuildTest.loader.js";
     var config = {
-      dataUrl: buildUrl + "/50efd7d7dc923cdf1a2345df195ba91c.data.unityweb",
-      frameworkUrl: buildUrl + "/63818aa0a9d08bc2deb83acfc3c6b0eb.js.unityweb",
-      codeUrl: buildUrl + "/218a5e3225d40c15662905ef38f3769b.wasm.unityweb",
+      dataUrl: buildUrl + "/e16191b11cb27fac5b878101f1157897.data.unityweb",
+      frameworkUrl: buildUrl + "/322ba98977866e9790a42e001c354cc6.js.unityweb",
+      codeUrl: buildUrl + "/b3cadf9c445c777386ac6c2115adc5ac.wasm.unityweb",
       streamingAssetsUrl: "StreamingAssets",
       companyName: "DungeonGames",
       productName: "Shooter",
@@ -111,6 +111,195 @@
       });
     };
     document.body.appendChild(script);
+  </script>
+  <script>
+    const library = {
+      $vkSDK: {
+        bridge: undefined,
+
+        isInitialized: false,
+
+        vkWebAppInit: function (onInitializedCallback, onErrorCallback, isTest) {
+
+          if (vkSDK.isInitialized) {
+            return;
+          }
+
+          const sdkScript = document.createElement('script');
+          sdkScript.src = 'https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js';
+          document.head.appendChild(sdkScript);
+
+          sdkScript.onload = function () {
+            function invokeSuccess() {
+              vkSDK.isInitialized = true;
+              vkSDK.bridge = window['vkBridge'];
+              dynCall('v', onInitializedCallback);
+            }
+
+            function invokeFailure(error) {
+              dynCall('v', onErrorCallback);
+              console.error(error);
+            }
+
+            if (isTest) {
+              window['vkBridge'] = {
+                send: function () {
+                  return new Promise(function (resolve, reject) {
+                    setTimeout(function () {
+                      reject(new Error('Error returned for testing purposes.'));
+                    }, 0);
+                  });
+                }
+              };
+              invokeSuccess();
+            } else {
+              window['vkBridge'].send("VKWebAppInit", {})
+                      .then(function (data) {
+                        if (data.result) {
+                          invokeSuccess();
+                        } else {
+                          invokeFailure(new Error('vkBridge failed to initialize.'));
+                        }
+                      })
+                      .catch(function (error) {
+                        invokeFailure(error);
+                      });
+            }
+          }
+        },
+
+        throwIfSdkNotInitialized: function () {
+          if (!vkSDK.isInitialized) {
+            throw new Error('SDK is not initialized. Invoke VKGamesSdk.Initialize() coroutine and wait for it to finish.');
+          }
+        },
+
+        vkWebSAppShowRewardedAd: function (onRewardedCallback, onErrorCallback) {
+          vkSDK.bridge.send("VKWebAppShowNativeAds", { ad_format: "reward" })
+                  .then(function (data) {
+                    if (data.result)
+                      dynCall('v', onRewardedCallback);
+                  })
+                  .catch(function (error) {
+                    dynCall('v', onErrorCallback);
+                    console.log(error);
+                  });
+        },
+
+        vkWebAppShowInterstitialAd: function (onOpenCallback, onErrorCallback) {
+          vkSDK.bridge.send("VKWebAppShowNativeAds", { ad_format: "interstitial" })
+                  .then(function (data) {
+                    if (data.result)
+                      dynCall('v', onOpenCallback);
+                  })
+                  .catch(function (error) {
+                    dynCall('v', onErrorCallback);
+                    console.log(error);
+                  });
+        },
+
+        vkWebAppShowLeaderboardBox: function (playerScore, onErrorCallback) {
+          vkSDK.bridge.send("VKWebAppShowLeaderBoardBox", { user_result: playerScore })
+                  .then(function (data) {
+                    console.log(data.success);
+                  })
+                  .catch(function (error) {
+                    dynCall('v', onErrorCallback);
+                    console.log(error);
+                  });
+        },
+
+        vkWebAppShowInviteBox: function (onSuccessCallback, onErrorCallback) {
+          vkSDK.bridge.send("VKWebAppShowInviteBox", {})
+                  .then(function (data) {
+                    if (data.success)
+                      dynCall('v', onSuccessCallback);
+                  })
+                  .catch(function (error) {
+                    dynCall('v', onErrorCallback);
+                    console.log(error);
+                  });
+        },
+
+        vkWebJoinGroup: function (onSuccessCallback, onErrorCallback) {
+          vkSDK.bridge.send("VKWebAppJoinGroup", { "group_id": 217602721 })
+                  .then(function (data) {
+                    if (data.result)
+                      dynCall('v', onSuccessCallback);
+                  })
+                  .catch(function (error) {
+                    dynCall('v', onErrorCallback);
+                    console.log(error);
+                  });
+        },
+
+        vkWebAppOpenPayForm: function (itemName ,onSuccessCallback, onErrorCallback) {
+          vkSDK.bridge.send('VKWebAppShowOrderBox', {
+            type: 'item',
+            item: UTF8ToString(itemName)
+          })
+                  .then((data) => {
+                    if (data.success) {
+                      dynCall('v', onSuccessCallback);
+                    }
+                  })
+                  .catch((error) => {
+                    console.log(error);
+                    dynCall('v', onErrorCallback);
+                  });
+        }
+      },
+
+      // C# calls
+
+      WebAppInit: function (onInitializedCallback, onErrorCallback, isTest) {
+        isTest = !!isTest;
+        vkSDK.vkWebAppInit(onInitializedCallback, onErrorCallback, isTest);
+      },
+
+      ShowRewardedAds: function (onRewardedCallback, onErrorCallback) {
+        vkSDK.throwIfSdkNotInitialized();
+
+        vkSDK.vkWebSAppShowRewardedAd(onRewardedCallback, onErrorCallback);
+      },
+
+      ShowInterstitialAds: function (onOpenCallback, onErrorCallback) {
+        vkSDK.throwIfSdkNotInitialized();
+
+        vkSDK.vkWebAppShowInterstitialAd(onOpenCallback, onErrorCallback);
+      },
+
+      ShowLeaderboardBox: function (playerScore, onErrorCallback) {
+        vkSDK.throwIfSdkNotInitialized();
+
+        vkSDK.vkWebAppShowLeaderboardBox(playerScore, onErrorCallback);
+      },
+
+      ShowInviteBox: function (onSuccessCallback, onErrorCallback) {
+        vkSDK.throwIfSdkNotInitialized();
+
+        vkSDK.vkWebAppShowInviteBox(onSuccessCallback, onErrorCallback);
+      },
+
+      JoinDungeonGamesGroup: function (onSuccessCallback, onErrorCallback) {
+        vkSDK.throwIfSdkNotInitialized();
+
+        vkSDK.vkWebJoinGroup(onSuccessCallback, onErrorCallback);
+      },
+
+      IsInitialized: function () {
+        return vkSDK.isInitialized;
+      },
+
+      VKWebAppOpenPayForm: function (itemName, onSuccessCallback, onErrorCallback) {
+        vkSDK.throwIfSdkNotInitialized();
+
+        vkSDK.vkWebAppOpenPayForm(itemName, onSuccessCallback, onErrorCallback);
+      }
+    }
+
+    autoAddDeps(library, '$vkSDK');
+    mergeInto(LibraryManager.library, library);
   </script>
 </body>
 
